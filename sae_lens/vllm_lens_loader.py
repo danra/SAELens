@@ -134,8 +134,10 @@ class VLLMLensProxy(HookedRootModule):
             raise ValueError(
                 f"Expected tokens of shape (batch, ctx); got {tuple(tokens.shape)}"
             )
-        # vLLM's offline LLM API takes prompt_token_ids as list[list[int]].
-        prompt_token_ids = tokens.to(torch.int64).tolist()
+        # Modern vLLM (and vllm-lens's patched generate) takes a list of
+        # TokensPrompt dicts as the first positional arg; the deprecated
+        # `prompt_token_ids=` kwarg has been removed.
+        prompts = [{"prompt_token_ids": ids} for ids in tokens.to(torch.int64).tolist()]
 
         sampling_params = SamplingParams(
             temperature=0.0,
@@ -143,7 +145,7 @@ class VLLMLensProxy(HookedRootModule):
             extra_args={"output_residual_stream": [layer]},
         )
         outputs = self._llm.generate(
-            prompt_token_ids=prompt_token_ids,
+            prompts,
             sampling_params=sampling_params,
             use_tqdm=False,
         )

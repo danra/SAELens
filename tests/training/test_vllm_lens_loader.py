@@ -53,14 +53,14 @@ def _install_fake_vllm(
     fake_llm_instance.get_tokenizer.return_value = MagicMock(name="tokenizer")
 
     def fake_generate(
-        prompt_token_ids: list[list[int]],
+        prompts: list[dict[str, list[int]]],
         sampling_params: object,  # noqa: ARG001
         use_tqdm: bool,  # noqa: ARG001
     ) -> list[SimpleNamespace]:
         # Return one RequestOutput-shaped object per prompt with the canned
         # activation tensor (in (num_layers=1, seq_len, d_model) shape).
         outs: list[SimpleNamespace] = []
-        for _ in prompt_token_ids:
+        for _ in prompts:
             o = SimpleNamespace()
             if activations_per_request is None:
                 o.activations = {"residual_stream": torch.zeros(1, 4, 8)}
@@ -156,11 +156,11 @@ def test_vllm_lens_proxy_raises_when_activations_missing(
     fake_llm, _, _ = _install_fake_vllm(monkeypatch)
 
     def no_activations(
-        prompt_token_ids: list[list[int]],
+        prompts: list[dict[str, list[int]]],
         sampling_params: object,  # noqa: ARG001
         use_tqdm: bool,  # noqa: ARG001
     ) -> list[SimpleNamespace]:
-        return [SimpleNamespace() for _ in prompt_token_ids]
+        return [SimpleNamespace() for _ in prompts]
 
     fake_llm.generate.side_effect = no_activations
 
