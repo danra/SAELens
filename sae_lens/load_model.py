@@ -19,6 +19,7 @@ def load_model(
     model_name: str,
     device: str | torch.device | None = None,
     model_from_pretrained_kwargs: dict[str, Any] | None = None,
+    max_model_len: int | None = None,
 ) -> HookedRootModule:
     model_from_pretrained_kwargs = model_from_pretrained_kwargs or {}
 
@@ -74,6 +75,7 @@ def load_model(
         return VLLMLensProxy(
             model_name=model_name,
             target_device=device if device is not None else "cpu",
+            max_model_len=max_model_len,
             vllm_kwargs=model_from_pretrained_kwargs,
         )
 

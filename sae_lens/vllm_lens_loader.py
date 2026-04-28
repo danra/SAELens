@@ -70,6 +70,7 @@ class VLLMLensProxy(HookedRootModule):
         self,
         model_name: str,
         target_device: str | torch.device = "cpu",
+        max_model_len: int | None = None,
         vllm_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__()
@@ -79,6 +80,12 @@ class VLLMLensProxy(HookedRootModule):
 
         vllm_kwargs = dict(vllm_kwargs or {})
         vllm_kwargs.setdefault("dtype", "bfloat16")
+        # vLLM otherwise defaults max_model_len to the model's native max
+        # (e.g., 262144 for gemma-4), reserving an enormous KV cache. SAELens
+        # only ever sends batches up to `context_size` tokens, so cap it.
+        # User-supplied vllm_kwargs["max_model_len"] still wins.
+        if max_model_len is not None:
+            vllm_kwargs.setdefault("max_model_len", max_model_len)
 
         self._llm = LLM(model=model_name, **vllm_kwargs)
         self._target_device = torch.device(target_device)

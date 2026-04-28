@@ -111,6 +111,27 @@ def test_vllm_lens_proxy_run_with_cache_returns_stacked_activations(
     llm_cls.assert_called_once_with(model="dummy", dtype="bfloat16")
 
 
+def test_vllm_lens_proxy_max_model_len_forwarded_to_vllm(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _, llm_cls, _ = _install_fake_vllm(monkeypatch)
+    VLLMLensProxy(model_name="dummy", max_model_len=1024)
+    llm_cls.assert_called_once_with(model="dummy", dtype="bfloat16", max_model_len=1024)
+
+
+def test_vllm_lens_proxy_user_vllm_kwargs_override_max_model_len_default(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # Explicit user vllm_kwargs wins over the proxy's max_model_len default.
+    _, llm_cls, _ = _install_fake_vllm(monkeypatch)
+    VLLMLensProxy(
+        model_name="dummy",
+        max_model_len=1024,
+        vllm_kwargs={"max_model_len": 2048},
+    )
+    llm_cls.assert_called_once_with(model="dummy", dtype="bfloat16", max_model_len=2048)
+
+
 def test_vllm_lens_proxy_run_with_cache_passes_layer_to_extra_args(
     monkeypatch: pytest.MonkeyPatch,
 ):

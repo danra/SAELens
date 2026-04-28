@@ -153,6 +153,7 @@ class LanguageModelSAETrainingRunner:
                 self.cfg.model_name,
                 device=llm_device,
                 model_from_pretrained_kwargs=self.cfg.model_from_pretrained_kwargs,
+                max_model_len=self.cfg.context_size,
             )
         else:
             self.model = override_model
