@@ -114,9 +114,12 @@ def test_vllm_lens_proxy_run_with_cache_returns_stacked_activations(
 def test_vllm_lens_proxy_max_model_len_forwarded_to_vllm(
     monkeypatch: pytest.MonkeyPatch,
 ):
+    # The proxy bumps the SAELens-provided context size by 1 so vLLM's
+    # `prompt_len + max_tokens <= max_model_len` check passes (we always
+    # ask for max_tokens=1 in run_with_cache).
     _, llm_cls, _ = _install_fake_vllm(monkeypatch)
     VLLMLensProxy(model_name="dummy", max_model_len=1024)
-    llm_cls.assert_called_once_with(model="dummy", dtype="bfloat16", max_model_len=1024)
+    llm_cls.assert_called_once_with(model="dummy", dtype="bfloat16", max_model_len=1025)
 
 
 def test_vllm_lens_proxy_user_vllm_kwargs_override_max_model_len_default(

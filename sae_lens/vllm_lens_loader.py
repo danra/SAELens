@@ -84,8 +84,11 @@ class VLLMLensProxy(HookedRootModule):
         # (e.g., 262144 for gemma-4), reserving an enormous KV cache. SAELens
         # only ever sends batches up to `context_size` tokens, so cap it.
         # User-supplied vllm_kwargs["max_model_len"] still wins.
+        # +1 because vLLM validates `prompt_len + max_tokens <= max_model_len`
+        # and we pass `max_tokens=1` in run_with_cache for prefill-only
+        # extraction.
         if max_model_len is not None:
-            vllm_kwargs.setdefault("max_model_len", max_model_len)
+            vllm_kwargs.setdefault("max_model_len", max_model_len + 1)
 
         self._llm = LLM(model=model_name, **vllm_kwargs)
         self._target_device = torch.device(target_device)
