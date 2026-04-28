@@ -16,9 +16,16 @@ Limitations:
     replacement) are not — vLLM's engine doesn't expose that interception
     point. The runner detects this via ``supports_forward = False`` on the
     proxy and skips those eval components.
+
+CUDA multiprocessing:
+    vLLM's EngineCore is a subprocess that re-initializes CUDA, which fails
+    under the default ``fork`` start-method if the parent has already
+    touched CUDA. Set ``VLLM_WORKER_MULTIPROC_METHOD=spawn`` in your
+    environment *before* importing SAELens / vLLM to avoid this. We
+    deliberately do not set it implicitly so the side effect stays visible
+    in your launcher (Modal image, shell, etc.).
 """
 
-import os
 from types import SimpleNamespace
 from typing import Any
 
@@ -66,12 +73,6 @@ class VLLMLensProxy(HookedRootModule):
         vllm_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__()
-        # vLLM's EngineCore is a subprocess that re-initializes CUDA. With the
-        # default fork start-method, that fails if the parent has already
-        # touched CUDA (common in notebooks / when SAELens runs alongside
-        # torch CUDA ops). Force spawn so the child gets a fresh CUDA state.
-        # Must be set before `import vllm`.
-        os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
         # Lazy import: vLLM is a heavy optional dep we don't want loaded on
         # the default HF / HookedTransformer paths.
         from vllm import LLM  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
