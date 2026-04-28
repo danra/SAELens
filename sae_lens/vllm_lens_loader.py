@@ -116,8 +116,8 @@ class VLLMLensProxy(HookedRootModule):
                 "VLLMLens supports extracting one hook at a time; pass exactly "
                 "one hook name in `names_filter`."
             )
-        from vllm import (
-            SamplingParams,  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
+        from vllm import (  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
+            SamplingParams,
         )
 
         hook_name = names_filter[0]
