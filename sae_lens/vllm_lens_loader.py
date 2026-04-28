@@ -18,6 +18,7 @@ Limitations:
     proxy and skips those eval components.
 """
 
+import os
 from types import SimpleNamespace
 from typing import Any
 
@@ -26,24 +27,23 @@ from transformer_lens.hook_points import HookedRootModule
 
 
 def _layer_from_hook_name(hook_name: str) -> int:
-    """Pull the integer layer index out of a SAELens hook name.
+    """Pull the integer layer index out of a TransformerLens hook name.
 
-    Handles both TransformerLens names (``blocks.{i}.hook_resid_post``) and
-    HF AutoModel names (``model.language_model.layers.{i}``). vLLM's
-    activation-extraction API takes integer layer indices, so we have to
-    convert.
+    vLLM's activation-extraction API takes integer layer indices and only
+    exposes the post-residual full-layer output, so we restrict to
+    ``blocks.{i}.hook_resid_post`` to make the contract unambiguous.
     """
     parts = hook_name.split(".")
-    for i, part in enumerate(parts):
-        if part in ("layers", "blocks") and i + 1 < len(parts):
-            try:
-                return int(parts[i + 1])
-            except ValueError:
-                pass
+    if len(parts) == 3 and parts[0] == "blocks" and parts[2] == "hook_resid_post":
+        try:
+            return int(parts[1])
+        except ValueError:
+            pass
     raise ValueError(
-        f"Could not extract a layer index from hook_name={hook_name!r}. "
-        "VLLMLens expects names of the form 'blocks.{i}...' or "
-        "'model.language_model.layers.{i}...'."
+        f"VLLMLens only supports TransformerLens-style residual-stream hooks "
+        f"of the form 'blocks.{{i}}.hook_resid_post'; got hook_name={hook_name!r}. "
+        "vllm-lens captures the post-residual full-layer output, which is what "
+        "hook_resid_post represents."
     )
 
 
@@ -66,6 +66,12 @@ class VLLMLensProxy(HookedRootModule):
         vllm_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__()
+        # vLLM's EngineCore is a subprocess that re-initializes CUDA. With the
+        # default fork start-method, that fails if the parent has already
+        # touched CUDA (common in notebooks / when SAELens runs alongside
+        # torch CUDA ops). Force spawn so the child gets a fresh CUDA state.
+        # Must be set before `import vllm`.
+        os.environ.setdefault("VLLM_WORKER_MULTIPROC_METHOD", "spawn")
         # Lazy import: vLLM is a heavy optional dep we don't want loaded on
         # the default HF / HookedTransformer paths.
         from vllm import LLM  # noqa: PLC0415  # pyright: ignore[reportMissingImports]

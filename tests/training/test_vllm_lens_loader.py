@@ -8,20 +8,35 @@ import torch
 from sae_lens.vllm_lens_loader import VLLMLensProxy, _layer_from_hook_name
 
 
-def test_layer_from_hook_name_extracts_from_tlens_style():
+def test_layer_from_hook_name_extracts_from_resid_post():
     assert _layer_from_hook_name("blocks.0.hook_resid_post") == 0
-    assert _layer_from_hook_name("blocks.17.attn.hook_q") == 17
+    assert _layer_from_hook_name("blocks.30.hook_resid_post") == 30
 
 
-def test_layer_from_hook_name_extracts_from_hf_style():
-    assert _layer_from_hook_name("model.language_model.layers.30") == 30
-    assert _layer_from_hook_name("model.layers.5") == 5
+def test_layer_from_hook_name_rejects_non_resid_post_tlens_hooks():
+    # vllm-lens only captures post-residual full-layer output; other TLens
+    # hooks (attn.hook_q, hook_resid_pre, hook_mlp_out, etc.) aren't available.
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("blocks.17.attn.hook_q")
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("blocks.5.hook_resid_pre")
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("blocks.5.hook_mlp_out")
+
+
+def test_layer_from_hook_name_rejects_hf_style():
+    # HF-style hook names are no longer accepted — caller must translate to
+    # TLens form so the contract (post-residual output) is explicit.
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("model.language_model.layers.30")
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("model.layers.5")
 
 
 def test_layer_from_hook_name_raises_on_unrecognized():
-    with pytest.raises(ValueError, match="Could not extract a layer index"):
-        _layer_from_hook_name("transformer.h.0.mlp")  # uses "h" not "layers"/"blocks"
-    with pytest.raises(ValueError, match="Could not extract a layer index"):
+    with pytest.raises(ValueError, match="hook_resid_post"):
+        _layer_from_hook_name("transformer.h.0.mlp")
+    with pytest.raises(ValueError, match="hook_resid_post"):
         _layer_from_hook_name("model.embed_tokens")
 
 
@@ -103,7 +118,7 @@ def test_vllm_lens_proxy_run_with_cache_passes_layer_to_extra_args(
     proxy = VLLMLensProxy(model_name="dummy")
     proxy.run_with_cache(
         torch.tensor([[1, 2]]),
-        names_filter=["model.language_model.layers.30"],
+        names_filter=["blocks.30.hook_resid_post"],
     )
     sp_cls.assert_called_once()
     kwargs = sp_cls.call_args.kwargs
