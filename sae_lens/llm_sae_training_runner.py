@@ -64,11 +64,18 @@ class LLMSaeEvaluator(Generic[T_TRAINING_SAE]):
                 self.activations_store.exclude_special_tokens.tolist()
             )
 
+        # Some model wrappers (e.g. VLLMLensProxy) don't support forward /
+        # run_with_hooks, so the CE-loss / KL eval path that requires running
+        # the LLM with the SAE swapped in is unavailable. Skip those eval
+        # components when the model advertises supports_forward=False.
+        supports_forward: bool = getattr(self.model, "supports_forward", True)
         eval_config = EvalConfig(
             batch_size_prompts=self.eval_batch_size_prompts,
-            n_eval_reconstruction_batches=self.n_eval_batches,
+            n_eval_reconstruction_batches=(
+                self.n_eval_batches if supports_forward else 0
+            ),
             n_eval_sparsity_variance_batches=self.n_eval_batches,
-            compute_ce_loss=True,
+            compute_ce_loss=supports_forward,
             compute_l2_norms=True,
             compute_sparsity_metrics=True,
             compute_variance_metrics=True,

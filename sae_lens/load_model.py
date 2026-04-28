@@ -61,6 +61,21 @@ def load_model(
             hf_model = hf_model.to(device)  # type: ignore
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         return HookedProxyLM(hf_model, tokenizer)
+    if model_class_name == "VLLMLens":
+        try:
+            from sae_lens.vllm_lens_loader import VLLMLensProxy
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "VLLMLens requires `vllm` and `vllm-lens` to be installed."
+            ) from exc
+        # `device` here is the activation-output target (typically the SAE's
+        # device); vLLM picks its own device(s) via its kwargs
+        # (`tensor_parallel_size`, etc.).
+        return VLLMLensProxy(
+            model_name=model_name,
+            target_device=device if device is not None else "cpu",
+            vllm_kwargs=model_from_pretrained_kwargs,
+        )
 
     # pragma: no cover
     raise ValueError(f"Unknown model class: {model_class_name}")

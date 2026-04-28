@@ -458,6 +458,50 @@ class TestLLMSaeEvaluator:
         assert isinstance(metrics, dict)
         assert len(metrics) > 0
 
+    def test_llm_sae_evaluator_skips_ce_loss_when_model_does_not_support_forward(
+        self,
+        ts_model: HookedTransformer,
+        activation_store: ActivationsStore,
+        training_sae: TrainingSAE[Any],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        # Some model wrappers (e.g. VLLMLensProxy) cannot run
+        # forward / run_with_hooks. They advertise supports_forward=False; the
+        # evaluator should turn off compute_ce_loss / compute_kl /
+        # n_eval_reconstruction_batches accordingly.
+        ts_model.supports_forward = False  # type: ignore[attr-defined]
+
+        captured: dict[str, Any] = {}
+
+        def fake_run_evals(**kwargs: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+            captured.update(kwargs)
+            return {}, {}
+
+        monkeypatch.setattr(
+            "sae_lens.llm_sae_training_runner.run_evals", fake_run_evals
+        )
+
+        evaluator = LLMSaeEvaluator(
+            model=ts_model,
+            activations_store=activation_store,
+            eval_batch_size_prompts=2,
+            n_eval_batches=3,
+            model_kwargs={},
+        )
+        evaluator(
+            sae=training_sae,
+            data_provider=activation_store,
+            activation_scaler=ActivationScaler(),
+        )
+
+        eval_config = captured["eval_config"]
+        assert eval_config.compute_ce_loss is False
+        assert eval_config.n_eval_reconstruction_batches == 0
+        # Sparsity / variance still run — only the forward-required path is
+        # skipped.
+        assert eval_config.compute_sparsity_metrics is True
+        assert eval_config.n_eval_sparsity_variance_batches == 3
+
     def test_llm_sae_evaluator_handles_no_exclude_special_tokens(
         self,
         ts_model: HookedTransformer,
