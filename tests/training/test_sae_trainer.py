@@ -8,7 +8,7 @@ from datasets import Dataset
 from transformer_lens import HookedTransformer
 
 from sae_lens import __version__
-from sae_lens.config import LanguageModelSAERunnerConfig
+from sae_lens.config import LanguageModelSAERunnerConfig, LoggingConfig
 from sae_lens.llm_sae_training_runner import (
     LanguageModelSAETrainingRunner,
     LLMSaeEvaluator,
@@ -205,7 +205,7 @@ def test_build_train_step_log_dict(
     # we're relying on the trainer only for some of the metrics here
     # we should more / less try to break this and push
     # everything through the train step output if we can.
-    log_dict = trainer._build_train_step_log_dict(
+    log_dict = trainer.build_train_step_log_dict(
         output=train_output, n_training_samples=123
     )
     expected = {
@@ -244,7 +244,7 @@ def test_build_train_step_log_dict_callable_metrics(
         },
     )
 
-    log_dict = trainer._build_train_step_log_dict(
+    log_dict = trainer.build_train_step_log_dict(
         output=train_output, n_training_samples=100
     )
 
@@ -622,3 +622,48 @@ def test_SAETrainer_save_and_load_from_checkpoint(
             assert torch.allclose(old_state[key], new_state[key])
         else:
             assert old_state[key] == new_state[key]
+
+
+def test_sae_trainer_fit_logs_train_eval_and_sparsity_metrics_to_wandb(
+    model: HookedTransformer,
+    captured_wandb_logs: list[dict[str, Any]],
+) -> None:
+    cfg = build_runner_cfg(
+        d_in=64,
+        d_sae=128,
+        training_tokens=16,  # 4 steps at train_batch_size_tokens=4
+        n_eval_batches=1,
+        feature_sampling_window=2,
+        logger=LoggingConfig(
+            log_to_wandb=True, wandb_log_frequency=1, eval_every_n_wandb_logs=1
+        ),
+    )
+    store = ActivationsStore.from_config(
+        model,
+        cfg,
+        override_dataset=Dataset.from_list([{"text": "hello world"}] * 2000),
+    )
+    sae = StandardTrainingSAE(cfg.sae)
+    evaluator = LLMSaeEvaluator(
+        model,
+        store,
+        eval_batch_size_prompts=cfg.eval_batch_size_prompts,
+        n_eval_batches=cfg.n_eval_batches,
+        model_kwargs=cfg.model_kwargs,
+    )
+    trainer = SAETrainer(
+        cfg=cfg.to_sae_trainer_config(),
+        sae=sae,
+        data_provider=store,
+        evaluator=evaluator,
+    )
+    trainer.fit()
+
+    assert captured_wandb_logs, "expected wandb.log to be called"
+    all_keys = {k for d in captured_wandb_logs for k in d}
+    # _log_train_step / build_train_step_log_dict
+    assert "losses/overall_loss" in all_keys
+    # _run_and_log_evals merges the evaluator output (ce loss is eval-only)
+    assert "model_performance_preservation" in all_keys
+    # the feature_sampling_window=2 sparsity reset emits its own log dict
+    assert "metrics/mean_log10_feature_sparsity" in all_keys
