@@ -1,5 +1,141 @@
 # CHANGELOG
 
+## v6.44.0 (2026-05-20)
+
+### Feature
+
+* feat: add MultiSAETrainingRunner for parallel SAE training (#678)
+
+* feat: add MultiSAETrainingRunner for parallel SAE training
+
+Train multiple SAEs from a single LLM forward pass, reusing the existing
+single-SAE training stack. MultiSAETrainer holds a dict of SAETrainer
+instances and routes per-SAE activations from a shared multi-hook
+ActivationsStore. The new ActivationsStore.from_config_multi_hook factory
+captures activations at multiple hooks in one run_with_cache and pipes them
+through the unmodified mixing_buffer via a concat-along-feature wrapper that
+guarantees a shared shuffle permutation across hooks. Bit-exact equivalence
+tests pin the multi path against running N independent SAETrainers/stores.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* fix: annotate headers dict for requests 2.34+ stricter typing
+
+requests 2.34 ships bundled type stubs typing the headers kwarg as
+MutableMapping[str, str | bytes] (invariant in the value type), so the
+inferred dict[str, str] from {**hf_headers, &#34;Range&#34;: &#34;...&#34;} is no longer
+assignable. Annotating the local variable as dict[str, str | bytes]
+matches the new constraint without changing runtime behaviour.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* refactor: address automated code review feedback
+
+- Move `from dataclasses import asdict` to module top (CLAUDE.md).
+- Replace `assert llm_device is not None` with an explicit RuntimeError
+  so the invariant holds under `python -O`.
+- Pass `device=layerwise.device` to `torch.zeros` in
+  `get_multi_hook_activations` to avoid a silent CPU allocation when
+  the model is on a non-CPU device.
+- Drop the view/reshape try/except in the multi-hook path; just
+  `reshape`. `view` failing on non-contiguous tensors is expected and
+  shouldn&#39;t be logged as ERROR.
+- Wrap the eval block in `_run_and_log_evals` in try/finally so SAEs
+  return to `train()` mode even if the evaluator raises.
+- Rename `SAETrainer._build_train_step_log_dict` to
+  `build_train_step_log_dict` (public) — removes the private-attribute
+  access from `MultiSAETrainer`.
+- Pop internal `_hook_*_per_sae` fields in
+  `MultiSAETrainingRunnerConfig.to_dict` so saved configs don&#39;t expose
+  redundant computed state.
+- Remove unused `verbose` config field.
+- Use `dict.fromkeys` for hook-name deduplication in
+  `ActivationsStore.from_config_multi_hook` to match the runner.
+- Call `random_params` in the test `_make_sae` helper and drop the
+  manual weight-offset hack in the same-hook independence test.
+- Build a fresh `ActivationsStore` for the post-training reconstruction
+  check instead of poking the private `_dataloader` attribute.
+- Drop &#34;see plan: out-of-scope&#34; phrase from the module docstring.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* feat: save sparsity.safetensors in multi-SAE final outputs
+
+The multi-SAE runner&#39;s final output dirs were missing the per-SAE
+sparsity.safetensors file that the single-SAE runner writes. The
+`_maybe_get_log_feature_sparsity` stub always returned None on the
+premise that the trainer ref was gone after fit() — but the trainer
+is still in scope in run(). Pass it into `_save_final_outputs` and
+pull each per-SAE trainer&#39;s `log_feature_sparsity` directly.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* refactor: address multi-SAE PR review feedback
+
+- get_multi_hook_activations: derive autocast device_type from the
+  model&#39;s input device instead of hardcoding &#34;cuda&#34; (would raise on
+  CPU/MPS when autocast_lm=True).
+- MultiSAETrainingRunnerConfig.to_dict: exclude internal fields via a
+  name set rather than post-hoc pops, so a future field rename fails
+  loudly instead of silently leaking private keys.
+- PerSAEEvaluator: type the data-provider argument as
+  Iterator[torch.Tensor] instead of Any.
+- Drop the dead callable/non-tensor branch in the multi-SAE pbar loss
+  formatting — TrainStepOutput.loss is always a Tensor.
+- Note the per-hook memory cost of n_batches_for_norm_estimate.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* test: expand coverage for multi-SAE training paths
+
+Codecov flagged large untested regions. Adds tests exercising the
+previously-uncovered wandb logging, evaluation, and resume paths:
+
+- Runner integration test with mocked wandb covering per-SAE metric
+  aggregation, the built-in + user evaluator, sparsity-reset logging,
+  prefetching, and special-token exclusion.
+- Real resume-from-checkpoint test (the old one only checked that
+  checkpoints were written, never the resume path).
+- override_saes mismatch, interrupt-checkpoint, and per-SAE
+  hook_head_indices dict validation tests.
+- MultiSAETrainer load_checkpoint missing-subdir error and pbar refresh.
+- Single-SAE SAETrainer wandb fit test covering _log_train_step,
+  _run_and_log_evals, and the sparsity-window reset path.
+
+Coverage: multi_sae_training_runner 79-&gt;95%, multi_sae_trainer
+74-&gt;100%, sae_trainer 89-&gt;97%.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* refactor: address multi-SAE PR review feedback
+
+- Share InterruptedException/interrupt_callback in sae_lens/training/_interruption
+- Construct SAEs directly from configs instead of from_dict round-trip
+- Replace hasattr duck-typing with isinstance(PrefetchingIterator) for paused()
+- Drop the None sentinel on _hook_head_indices; always a dict
+- Remove unnecessary torch.zeros allocation in get_multi_hook_activations
+- Move _FakeWandbArtifact / captured_wandb_logs fixture to tests/conftest.py
+- Strip docstrings from test functions per CLAUDE.md
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+* refactor: address second-round multi-SAE PR feedback
+
+- Hoist get_special_token_ids import out of _resolve_exclude_special_tokens
+- Use uuid.uuid4() instead of wandb.util.generate_id() for checkpoint dirs so
+  multi-SAE no longer pulls in wandb just to make a path unique
+- Drop redundant asdict(self.logger) in to_dict (asdict recurses)
+- Replace unreachable runtime guard on cfg.llm_device with an assert
+- Add @torch.no_grad() to _estimate_scaling_factors for consistency with
+  get_multi_hook_activations
+- Type tmp_path as Path (not Any) in multi-SAE trainer tests
+
+Co-Authored-By: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt;
+
+---------
+
+Co-authored-by: Claude Opus 4.7 (1M context) &lt;noreply@anthropic.com&gt; ([`0c7395d`](https://github.com/decoderesearch/SAELens/commit/0c7395df3814b8fffcb955695a633ed9aab3bdbb))
+
 ## v6.43.0 (2026-05-01)
 
 ### Feature

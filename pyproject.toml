@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sae-lens"
-version = "6.43.0"
+version = "6.44.0"
 description = "Training and Analyzing Sparse Autoencoders (SAEs)"
 authors = ["Joseph Bloom"]
 readme = "README.md"
@@ -68,6 +68,7 @@ transformers = "^5.0.0"
 [tool.poetry.extras]
 mamba = ["mamba-lens"]
 
+
 [tool.ruff.lint]
 exclude = ["*.ipynb"]
 ignore = ["E203", "E501", "E731", "F722", "E741", "F821", "F403", "ARG002"]
@@ -86,6 +87,7 @@ select = ["UP", "TID", "I", "F", "E", "ARG", "SIM", "RET", "LOG", "T20"]
 "typing.List".msg = "Use `list` instead"
 "tests".msg = "Do not import from tests in the main codebase."
 
+
 [tool.pyright]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = "none"
@@ -102,12 +104,13 @@ reportDeprecated = "none"
 reportPrivateImportUsage = "none"
 ignore = ["**/wandb/**"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
 [tool.semantic_release]
 version_variables = ["sae_lens/__init__.py:__version__"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
 build_command = "pip install poetry && poetry build"
 branches = { main = { match = "main" }, alpha = { match = "alpha", prerelease = true }, beta = { match = "beta", prerelease = true } }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
