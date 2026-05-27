@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v6.44.1 (2026-05-27)
+
+### Fix
+
+* fix: propagate compile, compile run_with_cache, prune HookedProxyLM hooks (#679)
+
+Fix a bug where compile_llm was a no-op, and improving compilation performance when using AutoModelForCausalLM ([`5d32ea5`](https://github.com/decoderesearch/SAELens/commit/5d32ea59ac799ec14ad6ead5c4655ab48c8d4f96))
+
 ## v6.44.0 (2026-05-20)
 
 ### Feature

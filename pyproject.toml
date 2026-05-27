@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sae-lens"
-version = "6.44.0"
+version = "6.44.1"
 description = "Training and Analyzing Sparse Autoencoders (SAEs)"
 authors = ["Joseph Bloom"]
 readme = "README.md"
@@ -109,6 +109,7 @@ version_variables = ["sae_lens/__init__.py:__version__"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
 build_command = "pip install poetry && poetry build"
 branches = { main = { match = "main" }, alpha = { match = "alpha", prerelease = true }, beta = { match = "beta", prerelease = true } }
+
 
 [build-system]
 requires = ["poetry-core"]
