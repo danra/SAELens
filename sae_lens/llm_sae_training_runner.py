@@ -128,6 +128,8 @@ class LanguageModelSAETrainingRunner:
             )
 
         self.cfg = cfg
+        if resume_from_checkpoint is not None:
+            self.cfg.resume_from_checkpoint = str(resume_from_checkpoint)
         # set in cfg.__post_init__; locally bound so type checkers see a str
         llm_device = self.cfg.llm_device
         assert llm_device is not None
