@@ -154,9 +154,11 @@ class SAEConfig(ABC):
     dtype: str = "float32"
     device: str = "cpu"
     apply_b_dec_to_input: bool = True
-    normalize_activations: Literal["none", "expected_average_only_in", "layer_norm"] = (
-        "none"  # none, expected_average_only_in (Anthropic April Update)
-    )
+    normalize_activations: Literal[
+        "none",
+        "expected_average_only_in",  # (Anthropic April Update)
+        "layer_norm",
+    ] = "none"
     reshape_activations: Literal["none", "hook_z"] = "none"
     metadata: SAEMetadata = field(default_factory=SAEMetadata)
 
