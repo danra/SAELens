@@ -156,7 +156,7 @@ class SAEConfig(ABC):
     apply_b_dec_to_input: bool = True
     normalize_activations: Literal[
         "none",
-        "expected_average_only_in",  # (Anthropic April Update)
+        "expected_average_only_in",  # (Anthropic April 2024 Update)
         "layer_norm",
     ] = "none"
     reshape_activations: Literal["none", "hook_z"] = "none"
