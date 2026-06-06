@@ -738,6 +738,7 @@ def test_activations_next_batch_excludes_special_tokens(
         store_batch_size_prompts=2,
         hook_name=hook_name,
         train_batch_size_tokens=5,
+        activations_mixing_fraction=0.0,
     )
     cfg = build_runner_cfg(
         exclude_special_tokens=True,
@@ -745,6 +746,7 @@ def test_activations_next_batch_excludes_special_tokens(
         store_batch_size_prompts=2,
         hook_name=hook_name,
         train_batch_size_tokens=5,
+        activations_mixing_fraction=0.0,
     )
     dataset = Dataset.from_list([{"text": "hello world"}] * 100)
     _, cache = ts_model.run_with_cache(dataset[0]["text"])
