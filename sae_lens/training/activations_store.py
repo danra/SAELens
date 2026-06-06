@@ -641,7 +641,7 @@ class ActivationsStore:
     @torch.no_grad()
     def get_activations(self, batch_tokens: torch.Tensor):
         """
-        Returns activations of shape (batches, context, num_layers, d_in)
+        Returns activations of shape (batch_size, context, num_layers, d_in)
 
         d_in may result from a concatenated head dimension.
         """
@@ -664,9 +664,9 @@ class ActivationsStore:
             :, slice(*self.seqpos_slice)
         ]
 
-        n_batches, n_context = layerwise_activations.shape[:2]
+        batch_size, n_context = layerwise_activations.shape[:2]
 
-        stacked_activations = torch.zeros((n_batches, n_context, self.d_in))
+        stacked_activations = torch.zeros((batch_size, n_context, self.d_in))
 
         if self.hook_head_index is not None:
             stacked_activations[:, :] = layerwise_activations[
@@ -675,13 +675,13 @@ class ActivationsStore:
         elif layerwise_activations.ndim > 3:  # if we have a head dimension
             try:
                 stacked_activations[:, :] = layerwise_activations.view(
-                    n_batches, n_context, -1
+                    batch_size, n_context, -1
                 )
             except RuntimeError as e:
                 logger.error(f"Error during view operation: {e}")
                 logger.info("Attempting to use reshape instead...")
                 stacked_activations[:, :] = layerwise_activations.reshape(
-                    n_batches, n_context, -1
+                    batch_size, n_context, -1
                 )
         else:
             stacked_activations[:, :] = layerwise_activations
