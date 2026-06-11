@@ -29,8 +29,11 @@ def test_TemporalSAE_initialization():
 
 
 @pytest.mark.parametrize("tied_weights", [True, False])
-def test_TemporalSAE_forward(tied_weights: bool):
-    cfg = build_temporal_sae_cfg(tied_weights=tied_weights)
+@pytest.mark.parametrize("apply_b_dec_to_input", [True, False])
+def test_TemporalSAE_forward(tied_weights: bool, apply_b_dec_to_input: bool):
+    cfg = build_temporal_sae_cfg(
+        tied_weights=tied_weights, apply_b_dec_to_input=apply_b_dec_to_input
+    )
     sae = TemporalSAE.from_dict(cfg.to_dict())
 
     batch_size = 4
@@ -43,9 +46,13 @@ def test_TemporalSAE_forward(tied_weights: bool):
 
 
 @pytest.mark.parametrize("tied_weights", [True, False])
-def test_TemporalSAE_encode(tied_weights: bool):
+@pytest.mark.parametrize("apply_b_dec_to_input", [True, False])
+def test_TemporalSAE_encode(tied_weights: bool, apply_b_dec_to_input: bool):
     cfg = build_temporal_sae_cfg(
-        tied_weights=tied_weights, sae_diff_type="topk", kval_topk=32
+        tied_weights=tied_weights,
+        apply_b_dec_to_input=apply_b_dec_to_input,
+        sae_diff_type="topk",
+        kval_topk=32,
     )
     sae = TemporalSAE.from_dict(cfg.to_dict())
 
@@ -62,8 +69,12 @@ def test_TemporalSAE_encode(tied_weights: bool):
     assert l0 <= cfg.kval_topk
 
 
-def test_TemporalSAE_decode():
-    cfg = build_temporal_sae_cfg()
+@pytest.mark.parametrize("tied_weights", [True, False])
+@pytest.mark.parametrize("apply_b_dec_to_input", [True, False])
+def test_TemporalSAE_decode(tied_weights: bool, apply_b_dec_to_input: bool):
+    cfg = build_temporal_sae_cfg(
+        tied_weights=tied_weights, apply_b_dec_to_input=apply_b_dec_to_input
+    )
     sae = TemporalSAE.from_dict(cfg.to_dict())
 
     batch_size = 4
