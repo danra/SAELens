@@ -325,7 +325,8 @@ class TemporalSAE(SAE[TemporalSAEConfig]):
         """
         # Decode novel codes
         sae_out = torch.matmul(feature_acts, self.W_dec)
-        sae_out = sae_out + self.b_dec
+        if not self.cfg.tied_weights or self.cfg.apply_b_dec_to_input:
+            sae_out = sae_out + self.b_dec
 
         # Apply hook
         sae_out = self.hook_sae_recons(sae_out)
@@ -348,7 +349,9 @@ class TemporalSAE(SAE[TemporalSAEConfig]):
         z_novel, z_pred = self.encode_with_predictions(x)
 
         # Decode the sum of predicted and novel codes.
-        x_recons = torch.matmul(z_novel + z_pred, self.W_dec) + self.b_dec
+        x_recons = torch.matmul(z_novel + z_pred, self.W_dec)
+        if not self.cfg.tied_weights or self.cfg.apply_b_dec_to_input:
+            x_recons = x_recons + self.b_dec
 
         # Apply output activation normalization (reverses input normalization)
         x_recons = self.run_time_activation_norm_fn_out(x_recons)
