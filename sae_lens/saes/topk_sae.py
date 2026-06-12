@@ -295,7 +295,7 @@ class TopKSAE(SAE[TopKSAEConfig]):
             raise NotImplementedError(
                 "Folding W_dec_norm is not safe for TopKSAEs when rescale_acts_by_decoder_norm is False, as this may change the topk activations"
             )
-        _fold_norm_topk(W_dec=self.W_dec, b_enc=self.b_enc, W_enc=self.W_enc)
+        super().fold_W_dec_norm()
 
 
 @dataclass
@@ -445,7 +445,7 @@ class TopKTrainingSAE(TrainingSAE[TopKTrainingSAEConfig]):
             raise NotImplementedError(
                 "Folding W_dec_norm is not safe for TopKSAEs when rescale_acts_by_decoder_norm is False, as this may change the topk activations"
             )
-        _fold_norm_topk(W_dec=self.W_dec, b_enc=self.b_enc, W_enc=self.W_enc)
+        super().fold_W_dec_norm()
 
     @override
     def get_activation_fn(self) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -515,6 +515,7 @@ class TopKTrainingSAE(TrainingSAE[TopKTrainingSAEConfig]):
         super().process_state_dict_for_saving_inference(state_dict)
         if self.cfg.rescale_acts_by_decoder_norm:
             _fold_norm_topk(
+                W_dec_norm=self.get_W_dec_norm(),
                 W_enc=state_dict["W_enc"],
                 b_enc=state_dict["b_enc"],
                 W_dec=state_dict["W_dec"],
@@ -558,11 +559,11 @@ def _init_weights_topk(
 
 
 def _fold_norm_topk(
+    W_dec_norm: torch.Tensor,
     W_enc: torch.Tensor,
     b_enc: torch.Tensor,
     W_dec: torch.Tensor,
 ) -> None:
-    W_dec_norm = W_dec.norm(dim=-1).clamp(min=1e-8)
     b_enc.data = b_enc.data * W_dec_norm
     W_dec_norms = W_dec_norm.unsqueeze(1)
     W_dec.data = W_dec.data / W_dec_norms

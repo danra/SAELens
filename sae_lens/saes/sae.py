@@ -504,16 +504,27 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
     def process_state_dict_for_loading(self, state_dict: dict[str, Any]) -> None:
         pass
 
-    @torch.no_grad()
     def fold_W_dec_norm(self):
         """Fold decoder norms into encoder."""
-        W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8).unsqueeze(1)
+        self.fold_and_get_W_dec_norm()
+
+    @torch.no_grad()
+    def get_W_dec_norm(self) -> torch.Tensor:
+        """Get decoder norms."""
+        return self.W_dec.norm(dim=-1).clamp(min=1e-8)
+
+    @torch.no_grad()
+    def fold_and_get_W_dec_norm(self) -> torch.Tensor:
+        """Fold decoder norms into encoder and return them."""
+        W_dec_norms = self.get_W_dec_norm().unsqueeze(1)
         self.W_dec.data = self.W_dec.data / W_dec_norms
         self.W_enc.data = self.W_enc.data * W_dec_norms.T
 
         # Only update b_enc if it exists (standard/jumprelu architectures)
         if hasattr(self, "b_enc") and isinstance(self.b_enc, nn.Parameter):
             self.b_enc.data = self.b_enc.data * W_dec_norms.squeeze(-1)
+
+        return W_dec_norms.squeeze(-1)
 
     def get_name(self):
         """Generate a name for this SAE."""

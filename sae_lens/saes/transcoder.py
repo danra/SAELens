@@ -367,14 +367,10 @@ class JumpReLUTranscoder(Transcoder):
         This is important for JumpReLU as the threshold needs to be scaled
         along with the decoder weights.
         """
-        # Get the decoder weight norms before normalizing
-        with torch.no_grad():
-            W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8)
-
         # Fold the decoder norms as in the parent class
-        super().fold_W_dec_norm()
+        W_dec_norms = self.fold_and_get_W_dec_norm()
 
-        # Scale the threshold by the decoder weight norms
+        # Scale the threshold by the same norms
         with torch.no_grad():
             self.threshold.data = self.threshold.data * W_dec_norms
 

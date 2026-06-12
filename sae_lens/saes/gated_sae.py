@@ -92,14 +92,12 @@ class GatedSAE(SAE[GatedSAEConfig]):
     @torch.no_grad()
     def fold_W_dec_norm(self):
         """Override to handle gated-specific parameters."""
-        W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8).unsqueeze(1)
-        self.W_dec.data = self.W_dec.data / W_dec_norms
-        self.W_enc.data = self.W_enc.data * W_dec_norms.T
+        W_dec_norms = self.fold_and_get_W_dec_norm()
 
         # Gated-specific parameters need special handling
         # r_mag doesn't need scaling since W_enc scaling is sufficient for magnitude path
-        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze(-1)
-        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze(-1)
+        self.b_gate.data = self.b_gate.data * W_dec_norms
+        self.b_mag.data = self.b_mag.data * W_dec_norms
 
 
 @dataclass
@@ -226,14 +224,12 @@ class GatedTrainingSAE(TrainingSAE[GatedTrainingSAEConfig]):
     @torch.no_grad()
     def fold_W_dec_norm(self):
         """Override to handle gated-specific parameters."""
-        W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8).unsqueeze(1)
-        self.W_dec.data = self.W_dec.data / W_dec_norms
-        self.W_enc.data = self.W_enc.data * W_dec_norms.T
+        W_dec_norms = self.fold_and_get_W_dec_norm()
 
         # Gated-specific parameters need special handling
         # r_mag doesn't need scaling since W_enc scaling is sufficient for magnitude path
-        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze(-1)
-        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze(-1)
+        self.b_gate.data = self.b_gate.data * W_dec_norms
+        self.b_mag.data = self.b_mag.data * W_dec_norms
 
 
 def _init_weights_gated(

@@ -171,11 +171,8 @@ class JumpReLUSAE(SAE[JumpReLUSAEConfig]):
         # Save the current threshold before calling parent method
         current_thresh = self.threshold.clone()
 
-        # Get W_dec norms that will be used for scaling (clamped to avoid division by zero)
-        W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8)
-
-        # Call parent implementation to handle W_enc, W_dec, and b_enc adjustment
-        super().fold_W_dec_norm()
+        # Handle W_enc, W_dec, and b_enc adjustment
+        W_dec_norms = self.fold_and_get_W_dec_norm()
 
         # Scale the threshold by the same factor as we scaled b_enc
         # This ensures the same features remain active/inactive after folding
@@ -333,13 +330,12 @@ class JumpReLUTrainingSAE(TrainingSAE[JumpReLUTrainingSAEConfig]):
         # Save the current threshold before we call the parent method
         current_thresh = self.threshold.clone()
 
-        # Get W_dec norms (clamped to avoid division by zero)
-        W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8).unsqueeze(1)
+        # Handle W_enc, W_dec, and b_enc adjustment
+        W_dec_norms = self.fold_and_get_W_dec_norm()
 
-        # Call parent implementation to handle W_enc and W_dec adjustment
-        super().fold_W_dec_norm()
-
-        self.log_threshold.data = torch.log(current_thresh * W_dec_norms.squeeze(-1))
+        # Scale the threshold by the same factor as we scaled b_enc
+        # This ensures the same features remain active/inactive after folding
+        self.log_threshold.data = torch.log(current_thresh * W_dec_norms)
 
     @override
     def process_state_dict_for_saving(self, state_dict: dict[str, Any]) -> None:
