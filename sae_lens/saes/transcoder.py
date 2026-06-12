@@ -369,7 +369,7 @@ class JumpReLUTranscoder(Transcoder):
         """
         # Get the decoder weight norms before normalizing
         with torch.no_grad():
-            W_dec_norms = self.W_dec.norm(dim=1)
+            W_dec_norms = self.W_dec.norm(dim=-1).clamp(min=1e-8)
 
         # Fold the decoder norms as in the parent class
         super().fold_W_dec_norm()
