@@ -303,6 +303,34 @@ def test_sae_fold_w_dec_norm_all_architectures(architecture: str):
     assert_close(sae_out_1, sae_out_2, atol=1e-5)
 
 
+@pytest.mark.parametrize("architecture", ALL_FOLDABLE_ARCHITECTURES)
+@torch.no_grad()
+def test_sae_fold_w_dec_norm_with_d_sae_of_1(architecture: str):
+    cfg = build_sae_cfg_for_arch(architecture, d_sae=1)
+    sae = SAE.from_dict(cfg.to_dict())
+    random_params(sae)
+
+    activations = 10.0 * torch.ones(8, cfg.d_in, device=cfg.device)
+    bias_shapes_before = {
+        name: param.shape
+        for name, param in sae.named_parameters()
+        if name in {"b_enc", "b_gate", "b_mag", "log_threshold"}
+    }
+    sae_out_before = sae(activations)
+
+    sae.fold_W_dec_norm()
+
+    # W_dec should be normalized to unit norm.
+    assert sae.W_dec.norm(dim=-1).item() == pytest.approx(1.0, abs=1e-6)
+    # Validate shape of the single-element bias params.
+    assert bias_shapes_before
+    for name, param in sae.named_parameters():
+        if name in bias_shapes_before:
+            assert param.shape == bias_shapes_before[name]
+    # Folding preserves the SAE function.
+    assert_close(sae(activations), sae_out_before, atol=1e-4)
+
+
 @pytest.mark.parametrize("architecture", ALL_TRAINING_ARCHITECTURES)
 @torch.no_grad()
 def test_training_sae_fold_w_dec_norm_all_architectures(architecture: str):
