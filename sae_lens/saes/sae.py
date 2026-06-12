@@ -516,15 +516,15 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
     @torch.no_grad()
     def fold_and_get_W_dec_norm(self) -> torch.Tensor:
         """Fold decoder norms into encoder and return them."""
-        W_dec_norms = self.get_W_dec_norm().unsqueeze(1)
-        self.W_dec.data = self.W_dec.data / W_dec_norms
-        self.W_enc.data = self.W_enc.data * W_dec_norms.T
+        W_dec_norms = self.get_W_dec_norm()
+        self.W_dec.data = self.W_dec.data / W_dec_norms.unsqueeze(1)
+        self.W_enc.data = self.W_enc.data * W_dec_norms.unsqueeze(1).T
 
         # Only update b_enc if it exists (standard/jumprelu architectures)
         if hasattr(self, "b_enc") and isinstance(self.b_enc, nn.Parameter):
-            self.b_enc.data = self.b_enc.data * W_dec_norms.squeeze(-1)
+            self.b_enc.data = self.b_enc.data * W_dec_norms
 
-        return W_dec_norms.squeeze(-1)
+        return W_dec_norms
 
     def get_name(self):
         """Generate a name for this SAE."""
