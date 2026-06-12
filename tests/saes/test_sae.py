@@ -264,7 +264,6 @@ def test_TrainingSAE_fold_activation_norm_scaling_factor_all_architectures(
 def test_sae_fold_w_dec_norm_all_architectures(architecture: str):
     cfg = build_sae_cfg_for_arch(architecture)
     sae = SAE.from_dict(cfg.to_dict())
-    sae.turn_off_forward_pass_hook_z_reshaping()  # hook z reshaping not needed here.
 
     # make sure all parameters are not 0s
     for param in sae.parameters():
@@ -309,7 +308,6 @@ def test_sae_fold_w_dec_norm_all_architectures(architecture: str):
 def test_training_sae_fold_w_dec_norm_all_architectures(architecture: str):
     cfg = build_sae_training_cfg_for_arch(architecture)
     sae = TrainingSAE.from_dict(cfg.to_dict())
-    sae.turn_off_forward_pass_hook_z_reshaping()  # hook z reshaping not needed here.
 
     # make sure all parameters are not 0s
     for param in sae.parameters():
@@ -416,7 +414,6 @@ def test_fold_W_dec_norm_does_not_produce_nan_with_zero_norm_decoder(
     """
     cfg = build_sae_cfg_for_arch(architecture)
     sae = SAE.from_dict(cfg.to_dict())
-    sae.turn_off_forward_pass_hook_z_reshaping()
 
     # Initialize parameters with random values
     for param in sae.parameters():
@@ -464,7 +461,6 @@ def test_training_fold_W_dec_norm_does_not_produce_nan_with_zero_norm_decoder(
     """
     cfg = build_sae_training_cfg_for_arch(architecture)
     sae = TrainingSAE.from_dict(cfg.to_dict())
-    sae.turn_off_forward_pass_hook_z_reshaping()
 
     # Initialize parameters with random values
     for param in sae.parameters():
