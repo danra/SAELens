@@ -513,7 +513,7 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
 
         # Only update b_enc if it exists (standard/jumprelu architectures)
         if hasattr(self, "b_enc") and isinstance(self.b_enc, nn.Parameter):
-            self.b_enc.data = self.b_enc.data * W_dec_norms.squeeze()
+            self.b_enc.data = self.b_enc.data * W_dec_norms.squeeze(-1)
 
     def get_name(self):
         """Generate a name for this SAE."""

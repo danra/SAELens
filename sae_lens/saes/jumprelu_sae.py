@@ -339,8 +339,7 @@ class JumpReLUTrainingSAE(TrainingSAE[JumpReLUTrainingSAEConfig]):
         # Call parent implementation to handle W_enc and W_dec adjustment
         super().fold_W_dec_norm()
 
-        # Fix: Use squeeze() instead of squeeze(-1) to match old behavior
-        self.log_threshold.data = torch.log(current_thresh * W_dec_norms.squeeze())
+        self.log_threshold.data = torch.log(current_thresh * W_dec_norms.squeeze(-1))
 
     @override
     def process_state_dict_for_saving(self, state_dict: dict[str, Any]) -> None:

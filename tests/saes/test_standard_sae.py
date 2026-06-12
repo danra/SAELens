@@ -248,7 +248,7 @@ def test_StandardSAE_fold_w_dec_norm(
     W_dec_norms = sae.W_dec.norm(dim=-1).unsqueeze(1)
     assert_close(sae2.W_dec.data, sae.W_dec.data / W_dec_norms)
     assert_close(sae2.W_enc.data, sae.W_enc.data * W_dec_norms.T)
-    assert_close(sae2.b_enc.data, sae.b_enc.data * W_dec_norms.squeeze())
+    assert_close(sae2.b_enc.data, sae.b_enc.data * W_dec_norms.squeeze(-1))
 
     # fold_W_dec_norm should normalize W_dec to have unit norm.
     assert sae2.W_dec.norm(dim=-1).mean().item() == pytest.approx(1.0, abs=1e-6)

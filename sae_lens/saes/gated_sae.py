@@ -98,8 +98,8 @@ class GatedSAE(SAE[GatedSAEConfig]):
 
         # Gated-specific parameters need special handling
         # r_mag doesn't need scaling since W_enc scaling is sufficient for magnitude path
-        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze()
-        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze()
+        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze(-1)
+        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze(-1)
 
 
 @dataclass
@@ -232,8 +232,8 @@ class GatedTrainingSAE(TrainingSAE[GatedTrainingSAEConfig]):
 
         # Gated-specific parameters need special handling
         # r_mag doesn't need scaling since W_enc scaling is sufficient for magnitude path
-        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze()
-        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze()
+        self.b_gate.data = self.b_gate.data * W_dec_norms.squeeze(-1)
+        self.b_mag.data = self.b_mag.data * W_dec_norms.squeeze(-1)
 
 
 def _init_weights_gated(
