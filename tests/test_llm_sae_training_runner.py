@@ -220,6 +220,15 @@ def test_parse_cfg_args_raises_system_exit_on_empty_args():
         _parse_cfg_args([])
 
 
+def test_parse_cfg_args_shows_architecture_in_help(capfd: pytest.CaptureFixture[str]):
+    with pytest.raises(SystemExit):
+        _parse_cfg_args(["--help"])
+    out = capfd.readouterr().out
+    assert "--architecture" in out
+    for architecture in ALL_TRAINING_ARCHITECTURES:
+        assert architecture in out
+
+
 def test_parse_cfg_args_raises_exception_on_invalid_args():
     with pytest.raises((SystemExit, Exception)):
         _parse_cfg_args(["--invalid-argument", "value"])
@@ -825,9 +834,12 @@ class TestResumeFromCheckpoint:
         activations_store_path = checkpoint_dirs[0] / ACTIVATIONS_STORE_STATE_FILENAME
         assert activations_store_path.exists(), "Activations store state wasn't saved"
 
-    def test_cli_args_parsing_with_resume(self):
+    @pytest.mark.parametrize("architecture", ALL_TRAINING_ARCHITECTURES)
+    def test_cli_args_parsing_with_resume(self, architecture: str):
         """Test that CLI args parsing works with --resume_from_checkpoint."""
         args = [
+            "--architecture",
+            architecture,
             "--model_name",
             "test-model",
             "--dataset_path",
@@ -837,6 +849,7 @@ class TestResumeFromCheckpoint:
         ]
         cfg = _parse_cfg_args(args)
 
+        assert cfg.sae.architecture() == architecture
         assert cfg.model_name == "test-model"
         assert cfg.dataset_path == "test-dataset"
         assert cfg.resume_from_checkpoint == "/path/to/checkpoint"
