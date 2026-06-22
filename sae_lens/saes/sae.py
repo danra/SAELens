@@ -154,9 +154,11 @@ class SAEConfig(ABC):
     dtype: str = "float32"
     device: str = "cpu"
     apply_b_dec_to_input: bool = True
-    normalize_activations: Literal["none", "expected_average_only_in", "layer_norm"] = (
-        "none"  # none, expected_average_only_in (Anthropic April Update)
-    )
+    normalize_activations: Literal[
+        "none",
+        "expected_average_only_in",  # (Anthropic April 2024 Update)
+        "layer_norm",
+    ] = "none"
     reshape_activations: Literal["none", "hook_z"] = "none"
     metadata: SAEMetadata = field(default_factory=SAEMetadata)
 
@@ -347,7 +349,10 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
                 x: torch.Tensor,
                 eps: float = 1e-5,  # noqa: ARG001
             ) -> torch.Tensor:
-                return x * self.ln_std + self.ln_mu  # type: ignore
+                x = x * self.ln_std + self.ln_mu  # type: ignore
+                del self.ln_mu
+                del self.ln_std
+                return x
 
             self.run_time_activation_norm_fn_in = run_time_activation_ln_in
             self.run_time_activation_norm_fn_out = run_time_activation_ln_out
@@ -494,11 +499,11 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
 
         return self.hook_sae_output(sae_out)
 
-    # overwrite this in subclasses to modify the state_dict in-place before saving
+    # override this in subclasses to modify the state_dict in-place before saving
     def process_state_dict_for_saving(self, state_dict: dict[str, Any]) -> None:
         pass
 
-    # overwrite this in subclasses to modify the state_dict in-place after loading
+    # override this in subclasses to modify the state_dict in-place after loading
     def process_state_dict_for_loading(self, state_dict: dict[str, Any]) -> None:
         pass
 
@@ -813,8 +818,13 @@ class SAE(HookedRootModule, Generic[T_SAE_CONFIG], ABC):
 
 @dataclass(kw_only=True)
 class TrainingSAEConfig(SAEConfig, ABC):
-    # https://transformer-circuits.pub/2024/april-update/index.html#training-saes
-    # 0.1 corresponds to the "heuristic" initialization, use None to disable
+    """
+    Configuration base class for training all SAE architectures.
+
+    Args:
+        decoder_init_norm (float | None): "heuristic" initialization, see Anthropic 2024 Circuits Update. None to disable
+    """
+
     decoder_init_norm: float | None = 0.1
 
     @classmethod
@@ -912,6 +922,7 @@ class TrainingSAE(SAE[T_TRAINING_SAE_CONFIG], ABC):
         """Encode with access to pre-activation values for training."""
         ...
 
+    @override
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """
         For inference, just encode without returning hidden_pre.
@@ -920,6 +931,7 @@ class TrainingSAE(SAE[T_TRAINING_SAE_CONFIG], ABC):
         feature_acts, _ = self.encode_with_hidden_pre(x)
         return feature_acts
 
+    @override
     def decode(self, feature_acts: torch.Tensor) -> torch.Tensor:
         """
         Decodes feature activations back into input space,
