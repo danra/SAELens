@@ -184,13 +184,14 @@ class JumpReLUTrainingSAEConfig(TrainingSAEConfig):
     """
     Configuration class for training a JumpReLUTrainingSAE.
 
-    - jumprelu_init_threshold: initial threshold for the JumpReLU activation
-    - jumprelu_bandwidth: bandwidth for the JumpReLU activation
-    - jumprelu_sparsity_loss_mode: mode for the sparsity loss, either "step" or "tanh". "step" is Google Deepmind's L0 loss, "tanh" is Anthropic's sparsity loss.
-    - l0_coefficient: coefficient for the l0 sparsity loss
-    - l0_warm_up_steps: number of warm-up steps for the l0 sparsity loss
-    - pre_act_loss_coefficient: coefficient for the pre-activation loss. Set to None to disable. Set to 3e-6 to match Anthropic's setup. Default is None.
-    - jumprelu_tanh_scale: scale for the tanh sparsity loss. Only relevant for "tanh" sparsity loss mode. Default is 4.0.
+    Args:
+        jumprelu_init_threshold: initial threshold for the JumpReLU activation
+        jumprelu_bandwidth: bandwidth for the JumpReLU activation
+        jumprelu_sparsity_loss_mode: mode for the sparsity loss, either "step" or "tanh". "step" is Google Deepmind's L0 loss, "tanh" is Anthropic's sparsity loss.
+        l0_coefficient: coefficient for the l0 sparsity loss
+        l0_warm_up_steps: number of warm-up steps for the l0 sparsity loss
+        pre_act_loss_coefficient: coefficient for the pre-activation loss. Set to None to disable. Set to 3e-6 to match Anthropic's setup.
+        jumprelu_tanh_scale: scale for the tanh sparsity loss. Only relevant for "tanh" sparsity loss mode.
     """
 
     jumprelu_init_threshold: float = 0.01
@@ -268,8 +269,10 @@ class JumpReLUTrainingSAE(TrainingSAE[JumpReLUTrainingSAEConfig]):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         sae_in = self.process_sae_in(x)
 
-        hidden_pre = sae_in @ self.W_enc + self.b_enc
-        feature_acts = JumpReLU.apply(hidden_pre, self.threshold, self.bandwidth)
+        hidden_pre = self.hook_sae_acts_pre(sae_in @ self.W_enc + self.b_enc)
+        feature_acts = self.hook_sae_acts_post(
+            JumpReLU.apply(hidden_pre, self.threshold, self.bandwidth)
+        )
 
         return feature_acts, hidden_pre  # type: ignore
 

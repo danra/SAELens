@@ -145,7 +145,6 @@ class TemporalSAEConfig(SAEConfig):
     activation_normalization_factor: float = 1.0
 
     def __post_init__(self):
-        # Call parent's __post_init__ first, but allow constant_scalar_rescale
         if self.normalize_activations not in [
             "none",
             "expected_average_only_in",
@@ -252,10 +251,12 @@ class TemporalSAE(SAE[TemporalSAEConfig]):
     def encode_with_predictions(
         self, x: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Encode input to novel codes only.
+        """Encode input to novel and predicted codes.
 
-        Returns only the sparse novel codes (not predicted codes).
-        This is the main feature representation for TemporalSAE.
+        Returns a tuple (z_novel, z_pred), where z_novel contains the sparse
+        novel codes (the main feature representation for TemporalSAE) and
+        z_pred contains the codes predicted from context by the attention
+        layers.
         """
         # Process input through SAELens preprocessing
         x = self.process_sae_in(x)
@@ -300,7 +301,8 @@ class TemporalSAE(SAE[TemporalSAEConfig]):
             x_residual = x_residual - proj_scale * Dz_pred_
 
         # Encode residual (novel part) with sparse SAE
-        z_novel = F.relu(torch.matmul(x_residual * self.lam, W_enc))
+        hidden_pre = self.hook_sae_acts_pre(torch.matmul(x_residual * self.lam, W_enc))
+        z_novel = F.relu(hidden_pre)
         if self.cfg.sae_diff_type == "topk":
             kval = self.cfg.kval_topk
             if kval is not None:
@@ -308,12 +310,18 @@ class TemporalSAE(SAE[TemporalSAEConfig]):
                 mask = torch.zeros_like(z_novel)
                 mask.scatter_(-1, topk_indices, 1)
                 z_novel = z_novel * mask
+        z_novel = self.hook_sae_acts_post(z_novel)
 
-        # Return only novel codes (these are the interpretable features)
+        # Return novel codes (the interpretable features) and predicted codes
         return z_novel, z_pred
 
     @override
     def encode(self, x: torch.Tensor) -> torch.Tensor:
+        """Encode input to novel codes only.
+
+        Returns only the sparse novel codes (not predicted codes).
+        This is the main feature representation for TemporalSAE.
+        """
         return self.encode_with_predictions(x)[0]
 
     @override
